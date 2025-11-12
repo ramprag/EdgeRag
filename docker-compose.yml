@@ -1,0 +1,21 @@
+version: '3.8'
+
+services:
+  edge-rag:
+    build: .
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./data:/app/data
+      - ./models:/app/models
+      - ./logs:/app/logs
+    environment:
+      - API_KEY=
+      - ENABLE_TELEMETRY=false
+    deploy:
+      resources:
+        limits:
+          memory: 7G
+        reservations:
+          memory: 4G
+    restart: unless-stopped

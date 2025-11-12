@@ -1,0 +1,550 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Edge RAG MVP</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 10px;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.2);
+            overflow: hidden;
+        }
+
+        header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 30px;
+            text-align: center;
+        }
+
+        header h1 {
+            font-size: 2.5rem;
+            margin-bottom: 10px;
+        }
+
+        .api-key-section {
+            padding: 20px;
+            background: #f8f9fa;
+            border-bottom: 1px solid #ddd;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .api-key-section input {
+            flex: 1;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+        }
+
+        .tabs {
+            display: flex;
+            background: #f8f9fa;
+            border-bottom: 2px solid #ddd;
+        }
+
+        .tab {
+            flex: 1;
+            padding: 15px;
+            background: none;
+            border: none;
+            cursor: pointer;
+            font-size: 1rem;
+            transition: background 0.3s;
+        }
+
+        .tab:hover {
+            background: #e9ecef;
+        }
+
+        .tab.active {
+            background: white;
+            border-bottom: 3px solid #667eea;
+        }
+
+        .tab-content {
+            display: none;
+            padding: 30px;
+        }
+
+        .tab-content.active {
+            display: block;
+        }
+
+        button {
+            padding: 10px 20px;
+            background: #667eea;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 1rem;
+            transition: background 0.3s;
+        }
+
+        button:hover {
+            background: #5568d3;
+        }
+
+        button:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+        }
+
+        .primary-btn {
+            background: #764ba2;
+            font-size: 1.1rem;
+            padding: 12px 30px;
+        }
+
+        .primary-btn:hover {
+            background: #633a8a;
+        }
+
+        input[type="file"] {
+            padding: 10px;
+            border: 2px dashed #ddd;
+            border-radius: 5px;
+            width: 100%;
+            margin-bottom: 10px;
+        }
+
+        textarea {
+            width: 100%;
+            padding: 15px;
+            border: 2px solid #ddd;
+            border-radius: 5px;
+            font-size: 1rem;
+            resize: vertical;
+            margin-bottom: 10px;
+            font-family: inherit;
+        }
+
+        .status-message {
+            padding: 10px;
+            margin: 10px 0;
+            border-radius: 5px;
+        }
+
+        .status-success {
+            background: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+
+        .status-error {
+            background: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+
+        .status-info {
+            background: #d1ecf1;
+            color: #0c5460;
+            border: 1px solid #bee5eb;
+        }
+
+        .loading {
+            display: inline-block;
+            width: 20px;
+            height: 20px;
+            border: 3px solid #f3f3f3;
+            border-top: 3px solid #667eea;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .answer-box {
+            background: #f8f9fa;
+            padding: 20px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            border-left: 4px solid #667eea;
+        }
+
+        .source-item {
+            background: white;
+            padding: 15px;
+            margin: 10px 0;
+            border-radius: 5px;
+            border: 1px solid #ddd;
+        }
+
+        .document-item {
+            background: #f8f9fa;
+            padding: 15px;
+            margin: 10px 0;
+            border-radius: 5px;
+            border-left: 4px solid #764ba2;
+        }
+
+        .upload-area {
+            margin-bottom: 20px;
+        }
+
+        .query-controls {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            margin-bottom: 20px;
+        }
+
+        .query-controls input[type="number"] {
+            width: 60px;
+            padding: 5px;
+            border: 1px solid #ddd;
+            border-radius: 3px;
+        }
+    </style>
+</head>
+<body>
+<div class="container">
+    <header>
+        <h1>🤖 Edge RAG MVP</h1>
+        <p>On-Device Document Q&A System</p>
+    </header>
+
+    <div class="api-key-section">
+        <label for="apiKey">API Key:</label>
+        <input type="password" id="apiKey" placeholder="Enter your API key" value="my-secret-key-123">
+        <button onclick="saveApiKey()">Save</button>
+        <span id="apiKeyStatus" style="color: green;">✓ Saved</span>
+    </div>
+
+    <div class="tabs">
+        <button class="tab active" onclick="showTab('upload')">📤 Upload</button>
+        <button class="tab" onclick="showTab('query')">💬 Query</button>
+        <button class="tab" onclick="showTab('documents')">📚 Documents</button>
+    </div>
+
+    <!-- Upload Tab -->
+    <div id="uploadTab" class="tab-content active">
+        <h2>Upload Documents</h2>
+        <div class="upload-area">
+            <input type="file" id="fileInput" accept=".pdf,.png,.jpg,.jpeg" multiple>
+            <button onclick="uploadFiles()">Upload Files</button>
+        </div>
+        <div id="uploadStatus"></div>
+        <div id="uploadedFiles"></div>
+
+        <div class="build-index-section" style="margin-top: 20px;">
+            <button onclick="buildIndex()" class="primary-btn">Build Index</button>
+            <div id="indexStatus"></div>
+        </div>
+    </div>
+
+    <!-- Query Tab -->
+    <div id="queryTab" class="tab-content">
+        <h2>Ask Questions</h2>
+        <div class="query-section">
+            <textarea id="queryInput" rows="3" placeholder="Enter your question..."></textarea>
+            <div class="query-controls">
+                <label>Top K: <input type="number" id="topK" value="5" min="1" max="20"></label>
+                <button onclick="submitQuery()" class="primary-btn">Ask</button>
+            </div>
+        </div>
+        <div id="queryResults"></div>
+    </div>
+
+    <!-- Documents Tab -->
+    <div id="documentsTab" class="tab-content">
+        <h2>Uploaded Documents</h2>
+        <button onclick="loadDocuments()">Refresh</button>
+        <div id="documentsList"></div>
+    </div>
+</div>
+
+<script>
+    let apiKey = 'my-secret-key-123';
+    const API_BASE = window.location.origin;
+
+    // Load API key from localStorage on page load
+    window.onload = function() {
+        const saved = localStorage.getItem('apiKey');
+        if (saved) {
+            apiKey = saved;
+            document.getElementById('apiKey').value = saved;
+            document.getElementById('apiKeyStatus').textContent = '✓ Saved';
+            document.getElementById('apiKeyStatus').style.color = 'green';
+        }
+    };
+
+    function saveApiKey() {
+        apiKey = document.getElementById('apiKey').value;
+        localStorage.setItem('apiKey', apiKey);
+        document.getElementById('apiKeyStatus').textContent = '✓ Saved';
+        document.getElementById('apiKeyStatus').style.color = 'green';
+        console.log('API key saved:', apiKey);
+    }
+
+    function showTab(tabName) {
+        // Remove active class from all tabs and contents
+        document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+        document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
+
+        // Add active class to clicked tab and corresponding content
+        event.target.classList.add('active');
+        document.getElementById(tabName + 'Tab').classList.add('active');
+    }
+
+    async function uploadFiles() {
+        const fileInput = document.getElementById('fileInput');
+        const files = fileInput.files;
+
+        if (files.length === 0) {
+            showStatus('uploadStatus', 'Please select files to upload', 'error');
+            return;
+        }
+
+        const statusDiv = document.getElementById('uploadStatus');
+        const uploadedDiv = document.getElementById('uploadedFiles');
+
+        statusDiv.innerHTML = '<div class="status-info"><div class="loading"></div> Uploading files...</div>';
+        uploadedDiv.innerHTML = '';
+
+        console.log(`Uploading ${files.length} files with API key: ${apiKey}`);
+
+        for (let file of files) {
+            try {
+                console.log(`Uploading file: ${file.name}`);
+
+                const formData = new FormData();
+                formData.append('file', file);
+
+                const response = await fetch(`${API_BASE}/upload`, {
+                    method: 'POST',
+                    headers: {
+                        'X-API-Key': apiKey
+                    },
+                    body: formData
+                });
+
+                console.log(`Response status: ${response.status}`);
+
+                if (!response.ok) {
+                    const errorText = await response.text();
+                    console.error('Upload error:', errorText);
+                    throw new Error(`Upload failed: ${response.statusText} - ${errorText}`);
+                }
+
+                const result = await response.json();
+                console.log('Upload result:', result);
+
+                uploadedDiv.innerHTML += `<div class="status-success">✓ ${file.name} → ${result.doc_id} (${result.pages} pages, ${result.processing_time_seconds.toFixed(2)}s)</div>`;
+            } catch (error) {
+                console.error('Upload error:', error);
+                uploadedDiv.innerHTML += `<div class="status-error">✗ ${file.name}: ${error.message}</div>`;
+            }
+        }
+
+        statusDiv.innerHTML = '';
+        fileInput.value = '';
+    }
+
+    async function buildIndex() {
+        const statusDiv = document.getElementById('indexStatus');
+        statusDiv.innerHTML = '<div class="status-info"><div class="loading"></div> Building index... This may take a few minutes.</div>';
+
+        console.log('Building index...');
+
+        try {
+            const response = await fetch(`${API_BASE}/build-index`, {
+                method: 'POST',
+                headers: {
+                    'X-API-Key': apiKey,
+                    'Content-Type': 'application/json'
+                }
+            });
+
+            console.log(`Build index response status: ${response.status}`);
+
+            if (!response.ok) {
+                const errorText = await response.text();
+                console.error('Build index error:', errorText);
+                throw new Error(`Build failed: ${response.statusText} - ${errorText}`);
+            }
+
+            const result = await response.json();
+            console.log('Build index result:', result);
+
+            statusDiv.innerHTML = `
+                <div class="status-success">
+                    <h3>✓ Index Built Successfully</h3>
+                    <p>Documents indexed: ${result.documents_indexed}</p>
+                    <p>Total chunks: ${result.total_chunks}</p>
+                    <p>Time: ${result.embedding_time_seconds.toFixed(2)}s</p>
+                    <p>Index size: ${result.index_size_mb.toFixed(2)} MB</p>
+                </div>
+            `;
+        } catch (error) {
+            console.error('Build index error:', error);
+            statusDiv.innerHTML = `<div class="status-error">Error: ${error.message}</div>`;
+        }
+    }
+
+    async function submitQuery() {
+        const query = document.getElementById('queryInput').value.trim();
+        const topK = parseInt(document.getElementById('topK').value);
+
+        if (!query) {
+            showStatus('queryResults', 'Please enter a question', 'error');
+            return;
+        }
+
+        const resultsDiv = document.getElementById('queryResults');
+        resultsDiv.innerHTML = '<div class="status-info"><div class="loading"></div> Generating answer...</div>';
+
+        console.log(`Querying: "${query}" with top_k=${topK}`);
+
+        try {
+            const response = await fetch(`${API_BASE}/query`, {
+                method: 'POST',
+                headers: {
+                    'X-API-Key': apiKey,
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ query, top_k: topK })
+            });
+
+            console.log(`Query response status: ${response.status}`);
+
+            if (!response.ok) {
+                const errorText = await response.text();
+                console.error('Query error:', errorText);
+                throw new Error(`Query failed: ${response.statusText} - ${errorText}`);
+            }
+
+            const result = await response.json();
+            console.log('Query result:', result);
+
+            displayQueryResults(result);
+        } catch (error) {
+            console.error('Query error:', error);
+            resultsDiv.innerHTML = `<div class="status-error">Error: ${error.message}</div>`;
+        }
+    }
+
+    function displayQueryResults(result) {
+        const resultsDiv = document.getElementById('queryResults');
+
+        let html = `
+            <div class="answer-box">
+                <h3>Answer</h3>
+                <p>${escapeHtml(result.answer)}</p>
+                <div style="margin-top: 15px; font-size: 0.9rem; color: #666;">
+                    <span>⏱️ Total: ${result.latency_ms}ms</span> |
+                    <span>🔍 Retrieval: ${result.retrieval_time_ms}ms</span> |
+                    <span>🤖 Generation: ${result.generation_time_ms}ms</span>
+                </div>
+            </div>
+        `;
+
+        if (result.sources && result.sources.length > 0) {
+            html += '<div class="sources"><h3>Sources</h3>';
+
+            result.sources.forEach((source, idx) => {
+                html += `
+                    <div class="source-item">
+                        <strong>Source ${idx + 1}</strong>: ${escapeHtml(source.filename)} (Page ${source.page})
+                        <br><small>Score: ${source.score.toFixed(3)}</small>
+                        <p style="margin-top: 10px; color: #666;">${escapeHtml(source.text)}</p>
+                    </div>
+                `;
+            });
+
+            html += '</div>';
+        }
+
+        resultsDiv.innerHTML = html;
+    }
+
+    async function loadDocuments() {
+        const docsDiv = document.getElementById('documentsList');
+        docsDiv.innerHTML = '<div class="status-info"><div class="loading"></div> Loading documents...</div>';
+
+        console.log('Loading documents...');
+
+        try {
+            const response = await fetch(`${API_BASE}/docs-list`, {
+                headers: {
+                    'X-API-Key': apiKey
+                }
+            });
+
+            console.log(`Docs list response status: ${response.status}`);
+
+            if (!response.ok) {
+                const errorText = await response.text();
+                console.error('Load docs error:', errorText);
+                throw new Error(`Failed to load documents: ${response.statusText} - ${errorText}`);
+            }
+
+            const result = await response.json();
+            console.log('Documents result:', result);
+
+            if (result.total === 0) {
+                docsDiv.innerHTML = '<p>No documents uploaded yet.</p>';
+                return;
+            }
+
+            let html = `<p><strong>Total documents: ${result.total}</strong></p>`;
+
+            result.documents.forEach(doc => {
+                html += `
+                    <div class="document-item">
+                        <strong>${escapeHtml(doc.filename)}</strong>
+                        <br>ID: ${doc.doc_id}
+                        <br>Pages: ${doc.pages}
+                        <br>Chunks: ${doc.chunks ? doc.chunks.length : 0}
+                    </div>
+                `;
+            });
+
+            docsDiv.innerHTML = html;
+        } catch (error) {
+            console.error('Load documents error:', error);
+            docsDiv.innerHTML = `<div class="status-error">Error: ${error.message}</div>`;
+        }
+    }
+
+    function showStatus(elementId, message, type) {
+        const element = document.getElementById(elementId);
+        element.innerHTML = `<div class="status-${type}">${message}</div>`;
+    }
+
+    function escapeHtml(text) {
+        const div = document.createElement('div');
+        div.textContent = text;
+        return div.innerHTML;
+    }
+
+    // Log when page loads
+    console.log('Edge RAG MVP Web UI loaded');
+    console.log('API Base URL:', API_BASE);
+    console.log('API Key:', apiKey);
+</script>
+</body>
+</html>

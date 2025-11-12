@@ -1,0 +1,38 @@
+# ============================================================================
+# FILE: requirements-docker.txt - OPTIMIZED FOR FAST BUILDS
+# ============================================================================
+
+# FastAPI (small, fast)
+fastapi==0.109.0
+uvicorn[standard]==0.27.0
+python-multipart==0.0.6
+aiofiles==23.2.1
+pydantic==2.5.3
+pydantic-settings==2.1.0
+
+# Core ML dependencies (install torch first, it's the biggest)
+--extra-index-url https://download.pytorch.org/whl/cpu
+torch==2.1.2+cpu
+numpy==1.24.3
+
+# Embeddings (this will download models on first run, not during build)
+sentence-transformers==2.3.1
+transformers==4.36.2
+
+# FAISS (lightweight)
+faiss-cpu==1.7.4
+
+# OCR (small packages)
+pytesseract==0.3.10
+pdfplumber==0.10.3
+Pillow==10.2.0
+pdf2image==1.16.3
+
+# Groq API (tiny package)
+groq==0.4.2
+
+# Utilities (all small)
+python-dotenv==1.0.0
+httpx==0.26.0
+tqdm==4.66.1
+requests==2.31.0
